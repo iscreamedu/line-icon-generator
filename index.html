@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Line Icon Generator</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1e293b}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:#e2e8f0;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#334155;cursor:pointer}
+input:focus{outline:none;border-color:#334155!important}
+button:active{transform:scale(0.97)}
+#icon-preview svg{display:block}
+#icon-preview i{display:none}
+.hist-item .del-btn{opacity:0}
+.hist-item:hover .del-btn{opacity:1}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}
+input[type=color]::-moz-color-swatch{border:none;border-radius:6px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,useEffect,useRef,useCallback,createElement:h} = React;
+const SIZES=[24,32,48,64,128,256,512];
+const PREVIEW_SIZE=210;
+function toKebabCase(name){return String(name).replace(/([a-z0-9])([A-Z])/g,"$1-$2").replace(/[\s_]+/g,"-").toLowerCase();}
+function normalizeText(str){return String(str||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function getLucideStore(){const L=window.lucide||window.Lucide;if(!L)return{};return{...(L.icons||{}),...L};}
+function resolveIcon(input){const store=getLucideStore(),q=normalizeText(input);if(!q)return"CircleHelp";const names=Object.keys(store).filter(k=>{const v=store[k];return Array.isArray(v)||Array.isArray(v?.iconNode);});const exact=names.find(n=>normalizeText(n)===q);if(exact)return exact;const starts=names.find(n=>normalizeText(n).startsWith(q));if(starts)return starts;const inc=names.find(n=>normalizeText(n).includes(q));if(inc)return inc;return"CircleHelp";}
+function MiniIcon({iconName,color,sw}){const ref=useRef(null);useEffect(()=>{const el=ref.current;if(!el||!window.lucide?.createIcons)return;el.innerHTML=`<i data-lucide="${toKebabCase(iconName)}"></i>`;window.lucide.createIcons({nameAttr:"data-lucide",attrs:{width:24,height:24,stroke:color,"stroke-width":String(sw),"stroke-linecap":"round","stroke-linejoin":"round",fill:"none"},nodes:[el]});},[iconName,color,sw]);return h('div',{ref,style:{width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center'}});}
+function App(){
+  const [keyword,setKeyword]=useState('home');
+  const [iconName,setIconName]=useState('Home');
+  const [color,setColor]=useState('#435666');
+  const [hexVal,setHexVal]=useState('#435666');
+  const [w,setW]=useState(512);
+  const [ht,setHt]=useState(512);
+  const [sw,setSw]=useState(1.5);
+  const [checker,setChecker]=useState(false);
+  const [history,setHistory]=useState([]);
+  const [ready,setReady]=useState(false);
+  const previewRef=useRef(null);
+  useEffect(()=>{function tryInit(){if(window.lucide?.createIcons){setReady(true);return true;}return false;}if(tryInit())return;const id=setInterval(()=>{if(tryInit())clearInterval(id);},150);const tid=setTimeout(()=>clearInterval(id),8000);return()=>{clearInterval(id);clearTimeout(tid);};},[]);
+  useEffect(()=>{if(!ready||!previewRef.current)return;const el=previewRef.current;el.innerHTML=`<i data-lucide="${toKebabCase(iconName)}"></i>`;window.lucide.createIcons({nameAttr:"data-lucide",attrs:{width:PREVIEW_SIZE,height:PREVIEW_SIZE,stroke:color,"stroke-width":String(sw),"stroke-linecap":"round","stroke-linejoin":"round",fill:"none"},nodes:[el]});},[ready,iconName,color,sw]);
+  const generate=useCallback(()=>{const name=resolveIcon(keyword);setIconName(name);setHistory(prev=>{const f=prev.filter(h=>h.keyword!==keyword);return [{keyword,iconName:name,color,sw},...f].slice(0,10);});},[keyword,color,sw]);
+  const setColorBoth=v=>{setColor(v);setHexVal(v);};
+  const handleHex=v=>{setHexVal(v);if(/^#[0-9A-Fa-f]{6}$/.test(v))setColor(v);};
+  const quickSize=s=>{setW(s);setHt(s);};
+  const restore=item=>{setKeyword(item.keyword);setIconName(item.iconName);setColorBoth(item.color);setSw(item.sw);};
+  const removeHistory=index=>{setHistory(prev=>prev.filter((_,i)=>i!==index));};
+  function getDownloadSVG(){const el=previewRef.current;if(!el)return null;const svgEl=el.querySelector('svg');if(!svgEl)return null;const clone=svgEl.cloneNode(true);clone.setAttribute('width',String(w));clone.setAttribute('height',String(ht));clone.setAttribute('xmlns','http://www.w3.org/2000/svg');const ratio=Math.min(w,ht)/PREVIEW_SIZE,scaledSW=(sw*ratio).toFixed(4);clone.setAttribute('stroke-width',scaledSW);clone.querySelectorAll('[stroke-width]').forEach(e=>e.setAttribute('stroke-width',scaledSW));return new XMLSerializer().serializeToString(clone);}
+  const downloadSVG=()=>{const svg=getDownloadSVG();if(!svg)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));a.download=`${keyword||'icon'}-icon.svg`;a.click();};
+  const downloadPNG=()=>{const svg=getDownloadSVG();if(!svg)return;const canvas=document.createElement('canvas');canvas.width=w;canvas.height=ht;const ctx=canvas.getContext('2d'),img=new Image();const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));img.onload=()=>{ctx.clearRect(0,0,w,ht);ctx.drawImage(img,0,0);const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download=`${keyword||'icon'}-icon.png`;a.click();URL.revokeObjectURL(url);};img.src=url;};
+  const panel={background:'#fff',border:'1px solid #e2e8f0',borderRadius:12,padding:16,display:'flex',flexDirection:'column',gap:14};
+  const lbl={fontSize:11,fontWeight:500,color:'#64748b',marginBottom:5,display:'block'};
+  const inp={width:'100%',padding:'7px 10px',fontSize:13,border:'1px solid #e2e8f0',borderRadius:8,color:'#1e293b',background:'#fff',boxSizing:'border-box'};
+  const btnP={width:'100%',padding:'8px 0',fontSize:13,fontWeight:500,background:'#334155',color:'#fff',border:'none',borderRadius:8,cursor:'pointer'};
+  const btnO={width:'100%',padding:'8px 0',fontSize:13,border:'1px solid #e2e8f0',borderRadius:8,background:'#fff',color:'#334155',cursor:'pointer'};
+  const bdg={padding:'3px 10px',fontSize:11,background:'#f1f5f9',color:'#475569',borderRadius:20};
+  const previewBg=checker?{backgroundImage:'linear-gradient(45deg,#d0d0d0 25%,transparent 25%),linear-gradient(-45deg,#d0d0d0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d0d0d0 75%),linear-gradient(-45deg,transparent 75%,#d0d0d0 75%)',backgroundSize:'16px 16px',backgroundPosition:'0 0,0 8px,8px -8px,-8px 0'}:{background:'#fff'};
+  return h('div',{style:{minHeight:'100vh',background:'#f8fafc',padding:18}},
+    h('div',{style:{maxWidth:900,margin:'0 auto 16px',display:'flex',alignItems:'baseline',gap:10}},
+      h('h1',{style:{fontSize:17,fontWeight:600,color:'#1e293b',margin:0}},'Line Icon Generator'),
+      h('span',{style:{fontSize:12,color:'#94a3b8'}},'① 아이콘명 검색 → ② 라인 아이콘 → ③ SVG/PNG 저장')
+    ),
+    h('div',{style:{maxWidth:900,margin:'0 auto',display:'grid',gridTemplateColumns:'210px 1fr 190px',gap:12,alignItems:'start'}},
+      h('div',{style:panel},
+        h('div',null,
+          h('label',{style:lbl},'아이콘 검색'),
+          h('input',{type:'text',value:keyword,placeholder:'예: home, shopping cart, list-checks',onChange:e=>setKeyword(e.target.value),onKeyDown:e=>{if(e.key==='Enter')generate();},style:inp}),
+          h('div',{style:{fontSize:10,color:'#94a3b8',marginTop:4,lineHeight:1.5}},'영문으로 입력'),
+          h('button',{onClick:generate,style:{...btnP,marginTop:8}},'아이콘 생성')
+        ),
+        h('div',null,
+          h('label',{style:lbl},'색상'),
+          h('div',{style:{display:'flex',gap:8,alignItems:'center'}},
+            h('input',{type:'color',value:color,onChange:e=>setColorBoth(e.target.value),style:{width:30,height:30,padding:0,border:'1px solid #94a3b8',borderRadius:8,background:'transparent',cursor:'pointer',overflow:'hidden',flexShrink:0,appearance:'none',WebkitAppearance:'none'}}),
+            h('input',{type:'text',value:hexVal,maxLength:7,onChange:e=>handleHex(e.target.value),style:{...inp,width:90,flex:'none',fontFamily:'monospace',fontSize:12}})
+          )
+        ),
+        h('div',null,
+          h('label',{style:lbl},'크기 (px)'),
+          h('div',{style:{display:'flex',gap:8,marginBottom:8}},
+            h('div',{style:{flex:1}},h('div',{style:{fontSize:10,color:'#94a3b8',marginBottom:3}},'W'),h('input',{type:'number',value:w,onChange:e=>setW(Number(e.target.value)),style:inp})),
+            h('div',{style:{flex:1}},h('div',{style:{fontSize:10,color:'#94a3b8',marginBottom:3}},'H'),h('input',{type:'number',value:ht,onChange:e=>setHt(Number(e.target.value)),style:inp}))
+          ),
+          h('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:4}},
+            ...SIZES.map(size=>h('button',{key:size,type:'button',onClick:()=>quickSize(size),style:{padding:'5px 0',fontSize:11,fontWeight:500,borderRadius:7,border:'1px solid',cursor:'pointer',background:w===size&&ht===size?'#334155':'#fff',color:w===size&&ht===size?'#fff':'#475569',borderColor:w===size&&ht===size?'#334155':'#e2e8f0'}},String(size)))
+          )
+        ),
+        h('div',null,
+          h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
+            h('span',{style:{fontSize:11,fontWeight:500,color:'#64748b'}},'Stroke Width'),
+            h('span',{style:{fontSize:12,fontWeight:600,color:'#334155'}},String(sw))
+          ),
+          h('input',{type:'range',min:0.5,max:4,step:0.25,value:sw,onChange:e=>setSw(Number(e.target.value)),style:{width:'100%'}}),
+          h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:10,color:'#cbd5e1',marginTop:2}},h('span',null,'0.5'),h('span',null,'4'))
+        ),
+        h('div',{style:{borderTop:'1px solid #f1f5f9',paddingTop:12,display:'flex',flexDirection:'column',gap:7}},
+          h('button',{onClick:downloadSVG,style:btnP},'SVG 다운로드'),
+          h('button',{onClick:downloadPNG,style:btnO},'PNG 다운로드')
+        )
+      ),
+      h('div',{style:{...panel,alignItems:'center',gap:14}},
+        h('div',{style:{width:280,height:280,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:10,border:'1px solid #e2e8f0',...previewBg}},
+          ready
+            ?h('div',{ref:previewRef,id:'icon-preview',style:{width:PREVIEW_SIZE,height:PREVIEW_SIZE,display:'flex',alignItems:'center',justifyContent:'center'}})
+            :h('div',{style:{textAlign:'center',color:'#94a3b8'}},h('div',{style:{fontSize:20,marginBottom:8}},'⏳'),h('div',{style:{fontSize:12}},'Lucide 로딩 중...'))
+        ),
+        h('label',{style:{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:12,color:'#64748b',userSelect:'none'}},
+          h('input',{type:'checkbox',checked:checker,onChange:e=>setChecker(e.target.checked)}),
+          '체커보드 배경 (투명도 확인)'
+        ),
+        h('div',{style:{display:'flex',flexWrap:'wrap',gap:5,justifyContent:'center'}},
+          h('span',{style:bdg},toKebabCase(iconName)),
+          h('span',{style:bdg},`${w} × ${ht} px`),
+          h('span',{style:{...bdg,fontFamily:'monospace',background:color+'22',color:color}},color),
+          h('span',{style:bdg},`sw ${sw}`)
+        )
+      ),
+      h('div',{style:panel},
+        h('div',{style:{fontSize:11,fontWeight:500,color:'#64748b',marginBottom:4}},'최근 생성'),
+        history.length===0
+          ?h('div',{style:{fontSize:12,color:'#cbd5e1',textAlign:'center',padding:'20px 0'}},'아직 생성된 아이콘이 없습니다')
+          :h('div',{style:{display:'flex',flexDirection:'column',gap:2}},
+              ...history.map((item,i)=>
+                h('button',{key:i,className:'hist-item',onClick:()=>restore(item),style:{display:'flex',alignItems:'center',gap:8,padding:'7px 6px',borderRadius:8,border:'1px solid transparent',background:'transparent',cursor:'pointer',textAlign:'left',width:'100%',position:'relative'},
+                  onMouseEnter:e=>{e.currentTarget.style.background='#f8fafc';e.currentTarget.style.borderColor='#e2e8f0'},
+                  onMouseLeave:e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='transparent'}
+                },
+                  h('div',{style:{width:28,height:28,flexShrink:0}},ready&&h(MiniIcon,{iconName:item.iconName,color:item.color,sw:item.sw})),
+                  h('div',{style:{flex:1,minWidth:0}},
+                    h('div',{style:{fontSize:13,color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},item.keyword),
+                    h('div',{style:{fontSize:10,color:'#94a3b8',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},toKebabCase(item.iconName))
+                  ),
+                  h('span',{className:'del-btn',onClick:e=>{e.stopPropagation();removeHistory(i);},style:{marginLeft:'auto',opacity:0.45,fontSize:14,color:'#94a3b8',cursor:'pointer',padding:'2px 6px',flexShrink:0,transition:'opacity 0.15s'}},'×')
+                )
+              )
+            )
+      )
+    )
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
