@@ -1,0 +1,983 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>칼퇴 계산기 — 제안 버전</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface2: #f8f9fb;
+  --border: #e2e6ed;
+  --border-strong: #c8cdd8;
+  --accent: #3b6ef5;
+  --accent-light: #eaefff;
+  --accent-mid: #5a87f7;
+  --text: #141824;
+  --text-muted: #5a6275;
+  --text-faint: #9ba3b5;
+  --red: #e03131;
+  --red-light: #fff0f0;
+  --blue: #1a4fa0;
+  --blue-light: #e8eef8;
+  --orange: #c25c00;
+  --orange-light: #fff3e8;
+  --purple: #6741d9;
+  --purple-light: #f0ecff;
+  --green: #2f7c45;
+  --green-light: #ebf7ef;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px 60px;
+}
+
+/* 제목 */
+.page-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #004eff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 16px;
+}
+
+.container {
+  width: 100%;
+  max-width: 760px;
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.toolbar-left  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* progress bus track */
+.progress-track-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1; max-width: 220px;
+}
+
+.run-icon { font-size: 20px; line-height: 1; display: inline-block; transform: scaleX(-1); }
+.house-icon { font-size: 20px; line-height: 1; }
+
+.week-bar-bg {
+  flex: 1;
+  height: 10px;
+  background: var(--border);
+  border: none;
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
+
+.week-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #5a87f7, #3b6ef5, #2555d4);
+  width: 0%;
+  transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+  max-width: 100%;
+}
+
+.week-summary {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.week-summary .done { color: var(--accent); font-weight: 500; }
+
+.tb-sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 2px; }
+
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tb-btn:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface2); }
+.tb-btn:active { transform: scale(0.97); }
+.tb-btn .icon { font-size: 13px; opacity: 0.6; }
+
+.tb-btn.action-bulk { color: var(--accent); border-color: rgba(124,92,191,0.3); background: var(--accent-light); }
+.tb-btn.action-bulk:hover { border-color: rgba(124,92,191,0.6); }
+.tb-btn.action-reset { color: var(--text-muted); }
+
+
+/* ── Main card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0;
+  box-shadow: 0 2px 12px rgba(20,24,36,0.08), 0 1px 3px rgba(20,24,36,0.04);
+  overflow: hidden;
+}
+
+/* ── Table header ── */
+.tbl-head {
+  display: grid;
+  grid-template-columns: 48px 110px 1fr 1fr 100px 100px;
+  gap: 0;
+  padding: 11px 16px;
+  border-bottom: 1.5px solid var(--border);
+  background: var(--surface2);
+}
+
+.th {
+  font-size: 13px;
+  color: var(--text-faint);
+  font-weight: 400;
+  text-align: center;
+}
+
+/* ── Day rows ── */
+.day-rows { padding: 4px 0; }
+
+.day-row {
+  display: grid;
+  grid-template-columns: 48px 110px 1fr 1fr 100px 100px;
+  gap: 0;
+  align-items: center;
+  padding: 9px 16px;
+  transition: background 0.15s;
+}
+
+.day-row:hover { background: #f5f7ff; }
+
+.day-row.dimmed { opacity: 0.4; }
+.day-row.dimmed input,
+.day-row.dimmed .hours-badge,
+.day-row.dimmed .depart-cell { pointer-events: none; }
+
+.day-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+}
+
+/* status select */
+.status-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+.status-dot { display: none; }
+
+select.status-sel {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  padding: 2px 18px 2px 0;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ababc0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  min-width: 60px;
+}
+
+select.status-sel:hover { color: var(--text); }
+select.status-sel.halfday { color: var(--orange); }
+select.status-sel.dayoff  { color: var(--red); }
+select.status-sel.holiday { color: var(--purple); }
+
+/* time inputs */
+.time-cell { display: flex; align-items: center; justify-content: center; }
+
+input[type="text"].time-inp {
+  width: 76px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+input[type="text"].time-inp:hover { border-color: var(--border-strong); }
+input[type="text"].time-inp:focus { border-color: rgba(124,92,191,0.5); background: var(--accent-light); }
+input[type="text"].time-inp.placeholder { color: var(--text-faint); }
+input[type="text"].time-inp.err { border-color: rgba(192,57,43,0.4); color: var(--red); }
+
+/* hours badge */
+.hours-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--text-faint);
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.hours-badge.filled { color: var(--text-muted); font-weight: 500; }
+.hours-badge.minus  { color: var(--red); font-size: 13px; }
+
+/* depart cell */
+.depart-cell {
+  display: flex;
+  justify-content: center;
+}
+
+.depart-chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: #004eff;
+  text-align: center;
+}
+
+.depart-chip.ready {
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.depart-chip.early {
+  background: var(--green-light);
+  color: var(--green);
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+.depart-chip.late {
+  background: var(--red);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+.depart-chip.off {
+  background: var(--purple-light);
+  color: var(--purple);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* ── Divider ── */
+.row-sep {
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+  margin: 4px 16px;
+}
+
+/* ── Summary bar ── */
+.summary-bar {
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 28px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.summary-main { display: flex; flex-direction: column; gap: 4px; }
+
+.summary-label {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.summary-big {
+  font-family: 'DM Mono', monospace;
+  font-size: 36px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+}
+
+.summary-big .unit { font-size: 14px; color: var(--text-faint); margin-left: 2px; }
+
+.summary-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+
+
+.pct-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+/* ── Modals ── */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(30,20,60,0.25);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-bg.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 8px 40px rgba(80,50,180,0.12);
+}
+
+.modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 18px; color: var(--text); }
+.modal p  { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+.modal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.modal-row label {
+  font-size: 13px;
+  color: var(--text-muted);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.modal-row input[type="text"],
+.modal-row input[type="time"] {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modal-row input:focus { border-color: rgba(124,92,191,0.5); }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+.modal-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.modal-btn:hover { border-color: var(--border-strong); color: var(--text); }
+.modal-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.modal-btn.primary:hover { background: var(--purple); border-color: var(--purple); }
+
+/* ── Footer ── */
+.footer {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 600px) {
+  .tbl-head, .day-row {
+    grid-template-columns: 40px 110px 1fr 1fr 90px 90px;
+    padding: 9px 16px;
+  }
+  .summary-bar { flex-direction: column; align-items: flex-start; }
+  .summary-right { align-items: flex-start; }
+  body { padding: 24px 12px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="page-title">칼퇴계산기</div>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="progress-track-wrap">
+        <span class="run-icon">🏃</span>
+        <div class="week-bar-bg">
+          <div class="week-bar-fill" id="week-bar"></div>
+        </div>
+        <span class="house-icon">🏠</span>
+      </div>
+      <span class="week-summary"><span class="done" id="week-done">0:00</span> / <span id="week-target2">40</span>h</span>
+
+    </div>
+    <div class="toolbar-right">
+      <a class="tb-btn" id="btn-jira" href="#" target="_blank"><span class="icon">↗</span> <span id="label-jira">지라</span></a>
+      <a class="tb-btn" id="btn-bus"  href="#" target="_blank"><span class="icon">↗</span> <span id="label-bus">버스</span></a>
+      <a class="tb-btn" id="btn-ehr"  href="#" target="_blank"><span class="icon">↗</span> <span id="label-ehr">eHR</span></a>
+      <button class="tb-btn" onclick="openLinkModal()" style="padding:7px 10px;color:var(--text-faint);" title="링크 수정">⚙</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn action-bulk" onclick="openBulkModal()">↺ 리셋</button>
+    </div>
+  </div>
+
+  <!-- Main table card -->
+  <div class="card">
+    <div class="tbl-head">
+      <div class="th" style="text-align:center">요일</div>
+      <div class="th" style="text-align:center">근무 상태</div>
+      <div class="th" style="text-align:center">출근</div>
+      <div class="th" style="text-align:center">퇴근</div>
+      <div class="th" style="text-align:center">총 근무시간</div>
+      <div class="th" style="text-align:center">퇴근 가능</div>
+    </div>
+    <div class="day-rows" id="day-rows"></div>
+  </div>
+
+  <div class="footer">made with ☕ — 40시간만 채우면 칼퇴</div>
+</div>
+
+<!-- Link modal -->
+<div class="modal-bg" id="link-modal">
+  <div class="modal">
+    <h2>바로가기 링크 수정</h2>
+    <p style="font-size:12px;color:var(--text-faint);margin-bottom:14px;">버튼 이름과 URL을 수정할 수 있어요.</p>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:6px;margin-bottom:6px;">
+      <div style="font-size:12px;color:var(--text-faint);padding:0 2px;">버튼 이름</div>
+      <div style="font-size:12px;color:var(--text-faint);padding:0 2px;">URL</div>
+    </div>
+    <div class="modal-row"><input type="text" id="lname-jira" placeholder="지라" style="width:80px;flex:none;"><input type="text" id="link-jira" placeholder="https://..."></div>
+    <div class="modal-row"><input type="text" id="lname-bus"  placeholder="버스" style="width:80px;flex:none;"><input type="text" id="link-bus"  placeholder="https://..."></div>
+    <div class="modal-row"><input type="text" id="lname-ehr"  placeholder="eHR"  style="width:80px;flex:none;"><input type="text" id="link-ehr"  placeholder="https://..."></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeLinkModal()">취소</button>
+      <button class="modal-btn primary" onclick="saveLinkModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk modal -->
+<div class="modal-bg" id="bulk-modal">
+  <div class="modal">
+    <h2>리셋</h2>
+    <p>출퇴근 시간을 설정하고 근무 상태를 초기화합니다.</p>
+    <div class="modal-row"><label>출근</label><input type="time" id="bulk-in"  value="09:00"></div>
+    <div class="modal-row"><label>퇴근</label><input type="time" id="bulk-out" value="18:00"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeBulkModal()">취소</button>
+      <button class="modal-btn primary" onclick="applyBulk()">적용</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── constants ── */
+const ALL_IDS    = ['mon','tue','wed','thu','fri'];
+const LABELS     = { mon:'월', tue:'화', wed:'수', thu:'목', fri:'금' };
+const STORE_KEY  = 'kaltoe_v2';
+const LINK_KEY   = 'kaltoe_links_v1';
+const BULK_KEY   = 'kaltoe_bulk_v1';
+const LUNCH_MINS = 60;
+const TARGET     = 40 * 60;
+
+const STATUS_OPTS = [
+  { value:'normal',  label:'없음',  deduct:0 },
+  { value:'halfday', label:'반차',  deduct:4*60 },
+  { value:'dayoff',  label:'연차',  deduct:8*60 },
+  { value:'holiday', label:'휴일',  deduct:8*60 },
+];
+
+/* ── helpers ── */
+function toMin(str) {
+  if (!str || !str.includes(':')) return null;
+  const [h, m] = str.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+function fmtDur(mins) {
+  // format duration minutes → H:MM
+  if (mins === null || isNaN(mins) || mins < 0) return '--';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}:${String(m).padStart(2,'0')}`;
+}
+
+function fmtClock(mins) {
+  // format clock minutes → HH:MM
+  if (mins === null || isNaN(mins)) return '--:--';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+/* ── time text input handling ── */
+// Formats "0922" or "09:22" → "09:22", clamps minutes to 59
+function parseTimeInput(raw) {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 3) return null;
+  let h, m;
+  if (digits.length <= 3) {
+    h = parseInt(digits.slice(0, 1), 10);
+    m = parseInt(digits.slice(1), 10);
+  } else {
+    h = parseInt(digits.slice(0, 2), 10);
+    m = parseInt(digits.slice(2, 4), 10);
+  }
+  if (isNaN(h) || isNaN(m)) return null;
+  m = Math.min(m, 59); // clamp minutes to max 59
+  h = Math.min(h, 23);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function makeTimeInput(id, placeholder, defaultVal) {
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'time-inp' + (!defaultVal ? ' placeholder' : '');
+  inp.id = id;
+  inp.value = defaultVal || '';
+  inp.placeholder = placeholder;
+  inp.maxLength = 5;
+
+  inp.addEventListener('focus', () => {
+    if (inp.classList.contains('placeholder')) inp.value = '';
+    inp.classList.remove('placeholder', 'err');
+  });
+
+  inp.addEventListener('input', () => {
+    inp.classList.remove('placeholder', 'err');
+    // auto-insert colon
+    const raw = inp.value.replace(/\D/g, '');
+    if (raw.length >= 3) {
+      const h = raw.slice(0, 2);
+      const m = raw.slice(2, 4);
+      inp.value = `${h}:${m}`;
+    }
+  });
+
+  inp.addEventListener('blur', () => {
+    const val = inp.value.trim();
+    if (!val) {
+      inp.classList.add('placeholder');
+      inp.value = '';
+      saveData(); calc();
+      return;
+    }
+    const parsed = parseTimeInput(val);
+    if (parsed) {
+      inp.value = parsed;
+      inp.classList.remove('err', 'placeholder');
+    } else {
+      inp.classList.add('err');
+    }
+    saveData(); calc();
+  });
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') inp.blur();
+  });
+
+  return inp;
+}
+
+/* ── Build rows ── */
+const rowsContainer = document.getElementById('day-rows');
+
+ALL_IDS.forEach((id, i) => {
+  const isFri = id === 'fri';
+
+  const row = document.createElement('div');
+  row.className = 'day-row';
+  row.id = `row-${id}`;
+
+  // Day label
+  const labelCell = document.createElement('div');
+  labelCell.className = 'day-label';
+  labelCell.textContent = LABELS[id];
+  row.appendChild(labelCell);
+
+  // Status
+  const statusWrap = document.createElement('div');
+  statusWrap.className = 'status-wrap';
+  const dot = document.createElement('div');
+  dot.className = 'status-dot';
+  dot.id = `dot-${id}`;
+  const sel = document.createElement('select');
+  sel.className = 'status-sel';
+  sel.id = `${id}-status`;
+  STATUS_OPTS.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.label;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => onStatus(id));
+  statusWrap.appendChild(dot);
+  statusWrap.appendChild(sel);
+  row.appendChild(statusWrap);
+
+  // In time
+  const inCell = document.createElement('div');
+  inCell.className = 'time-cell';
+  const inInp = makeTimeInput(`${id}-in`, '09:00', '09:00');
+  inCell.appendChild(inInp);
+  row.appendChild(inCell);
+
+  // Out time
+  const outCell = document.createElement('div');
+  outCell.className = 'time-cell';
+  const outInp = makeTimeInput(`${id}-out`, '18:00', isFri ? '' : '18:00');
+  outCell.appendChild(outInp);
+  row.appendChild(outCell);
+
+  // Hours badge
+  const badge = document.createElement('div');
+  badge.className = 'hours-badge';
+  badge.id = `badge-${id}`;
+  badge.textContent = '-';
+  badge.style.textAlign = 'center';
+  row.appendChild(badge);
+
+  // Depart chip
+  const departCell = document.createElement('div');
+  departCell.className = 'depart-cell';
+  departCell.id = `depart-${id}`;
+  const chip = document.createElement('span');
+  chip.className = 'depart-chip';
+  chip.textContent = '-';
+  departCell.appendChild(chip);
+  row.appendChild(departCell);
+
+  rowsContainer.appendChild(row);
+});
+
+/* ── Status change ── */
+function onStatus(id) {
+  const sel = document.getElementById(`${id}-status`);
+  const val = sel.value;
+  sel.className = 'status-sel' + (val !== 'normal' ? ' '+val : '');
+  const dot = document.getElementById(`dot-${id}`);
+  dot.className = 'status-dot' + (val !== 'normal' ? ' '+val : '');
+  const row = document.getElementById(`row-${id}`);
+  if (val === 'dayoff' || val === 'holiday') {
+    row.classList.add('dimmed');
+  } else {
+    row.classList.remove('dimmed');
+  }
+  saveData(); calc();
+}
+
+function getDeduct(id) {
+  const sel = document.getElementById(`${id}-status`);
+  const opt = STATUS_OPTS.find(s => s.value === sel.value);
+  return opt ? opt.deduct : 0;
+}
+
+/* ── Calc ── */
+function calc() {
+  // Pre-compute total deductions
+  let totalDeduct = 0;
+  ALL_IDS.forEach(id => { totalDeduct += getDeduct(id); });
+  const effectiveTarget = TARGET - totalDeduct;
+
+  // First pass: non-halfday work only
+  const dayWork = {};
+  let nonHalfdayWork = 0;
+  ALL_IDS.forEach(id => {
+    const inV    = document.getElementById(`${id}-in`).value;
+    const outV   = document.getElementById(`${id}-out`).value;
+    const status = document.getElementById(`${id}-status`).value;
+    dayWork[id] = 0;
+    if (status === 'dayoff' || status === 'holiday' || status === 'halfday') return;
+    if (inV && outV) {
+      const raw  = toMin(outV) - toMin(inV);
+      const work = raw - LUNCH_MINS;
+      if (work > 0) { dayWork[id] = work; nonHalfdayWork += work; }
+    }
+  });
+
+  // Halfday pass: out 시간 자동 계산 및 입력
+  let halfdayFilled = false;
+  ALL_IDS.forEach(id => {
+    const status = document.getElementById(`${id}-status`).value;
+    if (status !== 'halfday') return;
+    const inV   = document.getElementById(`${id}-in`).value;
+    const outEl = document.getElementById(`${id}-out`);
+    if (!inV) return;
+    const workNeeded = Math.min(Math.max(effectiveTarget - nonHalfdayWork, 0), 4 * 60);
+    const departTime = fmtClock(toMin(inV) + workNeeded);
+    if (outEl.value !== departTime) { outEl.value = departTime; halfdayFilled = true; }
+    outEl.classList.remove('placeholder', 'err');
+    dayWork[id] = workNeeded;
+  });
+
+  const totalWork = Object.values(dayWork).reduce((a, b) => a + b, 0);
+  if (halfdayFilled) saveData();
+
+  // Target day: 반차 제외, in 있고 out 없는 첫 번째 날
+  const targetDay = ALL_IDS.find(id => {
+    const inV    = document.getElementById(`${id}-in`).value;
+    const outV   = document.getElementById(`${id}-out`).value;
+    const status = document.getElementById(`${id}-status`).value;
+    return status !== 'dayoff' && status !== 'holiday' && status !== 'halfday' && inV && !outV;
+  }) || null;
+
+  // Second pass: badges and departure chips
+  ALL_IDS.forEach(id => {
+    const inV    = document.getElementById(`${id}-in`).value;
+    const outV   = document.getElementById(`${id}-out`).value;
+    const badge  = document.getElementById(`badge-${id}`);
+    const status = document.getElementById(`${id}-status`).value;
+    const depart = document.getElementById(`depart-${id}`).querySelector('.depart-chip');
+
+    if (status === 'dayoff' || status === 'holiday') {
+      badge.textContent  = status === 'dayoff' ? '연차' : '휴일';
+      badge.className    = 'hours-badge minus';
+      depart.textContent = status === 'dayoff' ? '연차' : '휴일';
+      depart.className   = 'depart-chip off';
+    } else {
+      // Badge
+      if (inV && outV) {
+        if (dayWork[id] > 0) {
+          badge.textContent = fmtDur(dayWork[id]);
+          badge.className   = 'hours-badge filled';
+        } else {
+          badge.textContent = '오류';
+          badge.className   = 'hours-badge';
+        }
+      } else {
+        badge.textContent = '-';
+        badge.className   = 'hours-badge';
+      }
+
+      // 퇴근 가능: 반차 제외, targetDay에만
+      if (id === targetDay) {
+        const stillNeed = Math.max(effectiveTarget - totalWork, 0);
+        let departTime;
+        if (totalWork >= effectiveTarget) {
+          departTime = fmtClock(toMin(inV));
+          depart.className = 'depart-chip early';
+        } else {
+          const departMins = toMin(inV) + stillNeed + LUNCH_MINS;
+          departTime = fmtClock(departMins);
+          const dh = Math.floor(departMins / 60);
+          if (dh < 17)       depart.className = 'depart-chip early';
+          else if (dh >= 19) depart.className = 'depart-chip late';
+          else               depart.className = 'depart-chip ready';
+        }
+        depart.textContent = departTime;
+      } else {
+        depart.textContent = '-';
+        depart.className   = 'depart-chip';
+      }
+    }
+  });
+
+  const pct = Math.min(Math.round((totalWork / effectiveTarget) * 100), 100);
+  document.getElementById('week-bar').style.width   = pct + '%';
+  document.getElementById('week-done').textContent   = fmtDur(totalWork);
+  document.getElementById('week-target2').textContent = effectiveTarget / 60;
+}
+
+/* ── localStorage ── */
+function saveData() {
+  const data = {};
+  ALL_IDS.forEach(id => {
+    data[`${id}-in`]     = document.getElementById(`${id}-in`).value;
+    data[`${id}-out`]    = document.getElementById(`${id}-out`).value;
+    data[`${id}-status`] = document.getElementById(`${id}-status`).value;
+  });
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    ALL_IDS.forEach(id => {
+      const inEl  = document.getElementById(`${id}-in`);
+      const outEl = document.getElementById(`${id}-out`);
+      const selEl = document.getElementById(`${id}-status`);
+      if (data[`${id}-in`]  !== undefined) {
+        inEl.value = data[`${id}-in`];
+        inEl.classList.toggle('placeholder', !data[`${id}-in`]);
+      }
+      if (data[`${id}-out`] !== undefined) {
+        outEl.value = data[`${id}-out`];
+        outEl.classList.toggle('placeholder', !data[`${id}-out`]);
+      }
+      if (data[`${id}-status`]) {
+        selEl.value = data[`${id}-status`];
+        const val = selEl.value;
+        selEl.className = 'status-sel' + (val !== 'normal' ? ' '+val : '');
+        if (val === 'dayoff' || val === 'holiday') {
+          document.getElementById(`row-${id}`).classList.add('dimmed');
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+/* ── Links ── */
+function loadLinks() {
+  try {
+    const raw = localStorage.getItem(LINK_KEY);
+    if (!raw) return;
+    const l = JSON.parse(raw);
+    if (l.jira) document.getElementById('btn-jira').href = l.jira;
+    if (l.bus)  document.getElementById('btn-bus').href  = l.bus;
+    if (l.ehr)  document.getElementById('btn-ehr').href  = l.ehr;
+    if (l.nameJira) document.getElementById('label-jira').textContent = l.nameJira;
+    if (l.nameBus)  document.getElementById('label-bus').textContent  = l.nameBus;
+    if (l.nameEhr)  document.getElementById('label-ehr').textContent  = l.nameEhr;
+  } catch(e) {}
+}
+
+function openLinkModal() {
+  try {
+    const raw = localStorage.getItem(LINK_KEY);
+    if (raw) {
+      const l = JSON.parse(raw);
+      document.getElementById('link-jira').value  = l.jira     || '';
+      document.getElementById('link-bus').value   = l.bus      || '';
+      document.getElementById('link-ehr').value   = l.ehr      || '';
+      document.getElementById('lname-jira').value = l.nameJira || '';
+      document.getElementById('lname-bus').value  = l.nameBus  || '';
+      document.getElementById('lname-ehr').value  = l.nameEhr  || '';
+    }
+  } catch(e) {}
+  document.getElementById('link-modal').classList.add('open');
+}
+
+function closeLinkModal() { document.getElementById('link-modal').classList.remove('open'); }
+
+function saveLinkModal() {
+  const l = {
+    jira:     document.getElementById('link-jira').value.trim(),
+    bus:      document.getElementById('link-bus').value.trim(),
+    ehr:      document.getElementById('link-ehr').value.trim(),
+    nameJira: document.getElementById('lname-jira').value.trim(),
+    nameBus:  document.getElementById('lname-bus').value.trim(),
+    nameEhr:  document.getElementById('lname-ehr').value.trim(),
+  };
+  try { localStorage.setItem(LINK_KEY, JSON.stringify(l)); } catch(e) {}
+  if (l.jira) document.getElementById('btn-jira').href = l.jira;
+  if (l.bus)  document.getElementById('btn-bus').href  = l.bus;
+  if (l.ehr)  document.getElementById('btn-ehr').href  = l.ehr;
+  document.getElementById('label-jira').textContent = l.nameJira || '지라';
+  document.getElementById('label-bus').textContent  = l.nameBus  || '버스';
+  document.getElementById('label-ehr').textContent  = l.nameEhr  || 'eHR';
+  closeLinkModal();
+}
+
+document.getElementById('link-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeLinkModal(); });
+
+/* ── Bulk ── */
+function openBulkModal() {
+  try {
+    const raw = localStorage.getItem(BULK_KEY);
+    if (raw) {
+      const b = JSON.parse(raw);
+      document.getElementById('bulk-in').value  = b.inV  || '09:00';
+      document.getElementById('bulk-out').value = b.outV || '18:00';
+    }
+  } catch(e) {}
+  document.getElementById('bulk-modal').classList.add('open');
+}
+function closeBulkModal() { document.getElementById('bulk-modal').classList.remove('open'); }
+
+function applyBulk() {
+  const inV  = document.getElementById('bulk-in').value;
+  const outV = document.getElementById('bulk-out').value;
+  try { localStorage.setItem(BULK_KEY, JSON.stringify({inV, outV})); } catch(e) {}
+  ALL_IDS.forEach(id => {
+    const inEl  = document.getElementById(`${id}-in`);
+    const outEl = document.getElementById(`${id}-out`);
+    const selEl = document.getElementById(`${id}-status`);
+    if (inV)  { inEl.value  = inV;  inEl.classList.remove('placeholder','err'); }
+    if (outV) { outEl.value = outV; outEl.classList.remove('placeholder','err'); }
+    selEl.value = 'normal';
+    selEl.className = 'status-sel';
+    document.getElementById(`row-${id}`).classList.remove('dimmed');
+  });
+  try { localStorage.removeItem(STORE_KEY); } catch(e) {}
+  closeBulkModal();
+  saveData(); calc();
+}
+
+document.getElementById('bulk-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeBulkModal(); });
+
+/* ── Reset ── */
+function doReset() {
+  if (!confirm('이번 주 데이터를 초기화할까요?')) return;
+  ALL_IDS.forEach(id => {
+    const inEl  = document.getElementById(`${id}-in`);
+    const outEl = document.getElementById(`${id}-out`);
+    const selEl = document.getElementById(`${id}-status`);
+    inEl.value  = '09:00';
+    inEl.classList.remove('placeholder','err');
+    outEl.value = id === 'fri' ? '' : '18:00';
+    if (id === 'fri') outEl.classList.add('placeholder');
+    else outEl.classList.remove('placeholder','err');
+    selEl.value = 'normal';
+    selEl.className = 'status-sel';
+    document.getElementById(`row-${id}`).classList.remove('dimmed');
+  });
+  try { localStorage.removeItem(STORE_KEY); } catch(e) {}
+  calc();
+}
+
+/* ── Init ── */
+loadData();
+loadLinks();
+calc();
+</script>
+</body>
+</html>
